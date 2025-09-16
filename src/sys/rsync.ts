@@ -1,4 +1,5 @@
-import { RsyncCompatibilityChecker, RsyncCompatibilityResult } from './rsyncChecker.ts';
+import { RsyncCompatibilityChecker } from './rsyncChecker.ts';
+import type { RsyncCompatibilityResult } from './rsyncChecker.ts';
 import { execSync, spawn, ChildProcess } from 'child_process';
 import { EventEmitter } from 'events';
 
@@ -17,6 +18,13 @@ export interface RsyncOptions {
     preserveTimes?: boolean;    // -t (preserve times)
     checksum?: boolean;         // -c (checksum)
     customArgs?: string[];      // Additional custom arguments
+    // Remote transfer options
+    sshKey?: string;           // SSH private key file path
+    sshPort?: number;          // SSH port (default 22)
+    sshUser?: string;          // SSH username
+    sshOptions?: string[];     // Additional SSH options
+    bandwidth?: number;        // Bandwidth limit in KB/s
+    timeout?: number;          // Connection timeout in seconds
 }
 
 export interface RsyncTransferResult {
@@ -27,6 +35,24 @@ export interface RsyncTransferResult {
     bytesTransferred?: number;
     filesTransferred?: number;
     duration?: number;
+    sourceSize?: number;
+    transferRate?: string;
+}
+
+export interface TransferTarget {
+    path: string;
+    host?: string;             // Remote hostname or IP
+    user?: string;             // Remote username
+    port?: number;             // SSH port
+    isRemote: boolean;
+}
+
+export interface FileInfo {
+    path: string;
+    size: number;
+    isDirectory: boolean;
+    permissions?: string;
+    lastModified?: Date;
 }
 
 /**
@@ -100,6 +126,11 @@ class RsyncManager extends EventEmitter {
         if (options.dryRun) args.push('--dry-run');
         if (options.checksum) args.push('-c');
 
+        // Bandwidth limiting
+        if (options.bandwidth) {
+            args.push('--bwlimit', options.bandwidth.toString());
+        }
+
         // Exclude patterns
         if (options.exclude) {
             options.exclude.forEach(pattern => {
@@ -114,7 +145,7 @@ class RsyncManager extends EventEmitter {
             });
         }
 
-        // Custom arguments
+        // Custom arguments (including SSH options)
         if (options.customArgs) {
             args.push(...options.customArgs);
         }
@@ -209,6 +240,256 @@ class RsyncManager extends EventEmitter {
      */
     async dryRun(source: string, destination: string, options: RsyncOptions = {}): Promise<RsyncTransferResult> {
         return this.sync(source, destination, { ...options, dryRun: true, verbose: true });
+    }
+
+    /**
+     * Transfer a file or folder to any location (local or remote)
+     */
+    async transfer(source: string, destination: TransferTarget | string, options: RsyncOptions = {}): Promise<RsyncTransferResult> {
+        if (!this.isReady()) {
+            throw new Error('RsyncManager not initialized or rsync not available');
+        }
+
+        // Parse destination
+        const dest = typeof destination === 'string' 
+            ? this.parseDestination(destination)
+            : destination;
+
+        // Build source and destination strings
+        const sourceStr = source;
+        const destStr = this.buildDestinationString(dest, options);
+
+        // Add remote-specific options
+        const transferOptions = { ...options };
+        if (dest.isRemote) {
+            transferOptions.compress = transferOptions.compress !== false; // Default to compression for remote
+            
+            // Add SSH options if specified
+            if (options.sshKey || options.sshPort || options.sshOptions) {
+                transferOptions.customArgs = [
+                    ...(transferOptions.customArgs || []),
+                    ...this.buildSSHArgs(options)
+                ];
+            }
+        }
+
+        return this.sync(sourceStr, destStr, transferOptions);
+    }
+
+    /**
+     * Transfer a file to a remote system
+     */
+    async transferToRemote(source: string, remoteHost: string, remotePath: string, 
+                          user?: string, options: RsyncOptions = {}): Promise<RsyncTransferResult> {
+        const destination: TransferTarget = {
+            path: remotePath,
+            host: remoteHost,
+            user: user,
+            port: options.sshPort,
+            isRemote: true
+        };
+
+        return this.transfer(source, destination, options);
+    }
+
+    /**
+     * Transfer a file from a remote system
+     */
+    async transferFromRemote(remoteHost: string, remotePath: string, localDestination: string,
+                            user?: string, options: RsyncOptions = {}): Promise<RsyncTransferResult> {
+        const source: TransferTarget = {
+            path: remotePath,
+            host: remoteHost,
+            user: user,
+            port: options.sshPort,
+            isRemote: true
+        };
+
+        const sourceStr = this.buildDestinationString(source, options);
+        return this.sync(sourceStr, localDestination, options);
+    }
+
+    /**
+     * Copy a folder recursively (local or remote)
+     */
+    async copyFolder(source: string, destination: TransferTarget | string, 
+                    options: RsyncOptions = {}): Promise<RsyncTransferResult> {
+        const folderOptions = {
+            ...options,
+            recursive: true,
+            archive: options.archive !== false // Default to archive mode for folders
+        };
+
+        return this.transfer(source, destination, folderOptions);
+    }
+
+    /**
+     * Mirror a directory (sync with deletion of extra files)
+     */
+    async mirrorDirectory(source: string, destination: TransferTarget | string,
+                         options: RsyncOptions = {}): Promise<RsyncTransferResult> {
+        const mirrorOptions = {
+            ...options,
+            recursive: true,
+            archive: options.archive !== false,
+            delete: true
+        };
+
+        return this.transfer(source, destination, mirrorOptions);
+    }
+
+    /**
+     * Backup files with timestamped destination
+     */
+    async backup(source: string, backupRoot: string, options: RsyncOptions = {}): Promise<RsyncTransferResult> {
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
+        const backupPath = `${backupRoot}/backup-${timestamp}`;
+        
+        const backupOptions = {
+            ...options,
+            recursive: true,
+            archive: true,
+            compress: true
+        };
+
+        return this.transfer(source, backupPath, backupOptions);
+    }
+
+    /**
+     * Get information about files that would be transferred
+     */
+    async getTransferInfo(source: string, destination: TransferTarget | string,
+                         options: RsyncOptions = {}): Promise<FileInfo[]> {
+        const dryRunResult = await this.transfer(source, destination, {
+            ...options,
+            dryRun: true,
+            verbose: true
+        });
+
+        return this.parseTransferInfo(dryRunResult.output);
+    }
+
+    /**
+     * Test connection to remote host
+     */
+    async testRemoteConnection(host: string, user?: string, options: RsyncOptions = {}): Promise<boolean> {
+        try {
+            const testTarget: TransferTarget = {
+                path: '.',
+                host,
+                user,
+                port: options.sshPort,
+                isRemote: true
+            };
+
+            const result = await this.transfer('.', testTarget, {
+                ...options,
+                dryRun: true,
+                timeout: 10
+            });
+
+            return result.success;
+        } catch {
+            return false;
+        }
+    }
+
+    // Helper methods
+
+    /**
+     * Parse destination string into TransferTarget
+     */
+    private parseDestination(destination: string): TransferTarget {
+        // Check if it's a remote destination (user@host:path or host:path)
+        const remoteMatch = destination.match(/^(?:([^@]+)@)?([^:]+):(.+)$/);
+        
+        if (remoteMatch) {
+            const [, user, host, path] = remoteMatch;
+            return {
+                path,
+                host,
+                user,
+                isRemote: true
+            };
+        }
+
+        // Local destination
+        return {
+            path: destination,
+            isRemote: false
+        };
+    }
+
+    /**
+     * Build destination string for rsync command
+     */
+    private buildDestinationString(target: TransferTarget, options: RsyncOptions = {}): string {
+        if (!target.isRemote) {
+            return target.path;
+        }
+
+        const user = target.user || options.sshUser || '';
+        const userPrefix = user ? `${user}@` : '';
+        const port = target.port || options.sshPort;
+        
+        if (port && port !== 22) {
+            // For non-standard ports, we need to use SSH options
+            return `${userPrefix}${target.host}:${target.path}`;
+        }
+
+        return `${userPrefix}${target.host}:${target.path}`;
+    }
+
+    /**
+     * Build SSH arguments for remote transfers
+     */
+    private buildSSHArgs(options: RsyncOptions): string[] {
+        const sshArgs: string[] = [];
+        
+        if (options.sshKey) {
+            sshArgs.push('-e', `ssh -i "${options.sshKey}"`);
+        }
+        
+        if (options.sshPort && options.sshPort !== 22) {
+            const existingSSH = sshArgs.length > 1 ? sshArgs[1] : 'ssh';
+            sshArgs[1] = `${existingSSH} -p ${options.sshPort}`;
+        }
+        
+        if (options.sshOptions) {
+            const existingSSH = sshArgs.length > 1 ? sshArgs[1] : 'ssh';
+            sshArgs[1] = `${existingSSH} ${options.sshOptions.join(' ')}`;
+        }
+
+        if (options.timeout) {
+            const existingSSH = sshArgs.length > 1 ? sshArgs[1] : 'ssh';
+            sshArgs[1] = `${existingSSH} -o ConnectTimeout=${options.timeout}`;
+        }
+
+        return sshArgs;
+    }
+
+    /**
+     * Parse transfer information from dry run output
+     */
+    private parseTransferInfo(output: string): FileInfo[] {
+        const files: FileInfo[] = [];
+        const lines = output.split('\n');
+        
+        for (const line of lines) {
+            // Parse rsync dry-run output format
+            const fileMatch = line.match(/^([>c]f[+.][+.][+.][+.][+.][+.][+.][+.][+.]) (.+)$/);
+            if (fileMatch) {
+                const [, flags, path] = fileMatch;
+                files.push({
+                    path,
+                    size: 0, // Size not available in basic dry-run
+                    isDirectory: flags.includes('d'),
+                    permissions: flags.substring(1, 10)
+                });
+            }
+        }
+        
+        return files;
     }
 
     /**

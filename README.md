@@ -1,15 +1,41 @@
-# FAST-TransferLib Rsync Checker
+# FAST-TransferLib Rsync Manager
 
-A comprehensive TypeScript library for checking Rsync compatibility across all major operating systems and providing installation guidance.
+A comprehensive TypeScript library for rsync compatibility checking, automatic installation, and file/folder transfer operations across all major operating systems.
 
 ## Features
 
 - **Cross-platform compatibility checking** (Windows, macOS, Linux)
 - **Enhanced automatic installation** with fallback methods
+- **File and folder transfer operations** (local and remote)
 - **Multiple installation methods** per platform
 - **CLI interface** for standalone usage
 - **Library interface** for programmatic usage
+- **SSH support** for remote transfers
 - **Comprehensive error handling** and reporting
+
+## File Transfer Capabilities
+
+The library now includes comprehensive file and folder transfer functionality:
+
+### Transfer Operations
+- **Basic Transfer**: Copy files/folders to local or remote destinations
+- **Recursive Copy**: Copy entire directory structures with progress tracking
+- **Mirror Operations**: Exact synchronization with deletion of extra files
+- **Incremental Backup**: Space-efficient backups using hard links
+- **Remote Transfers**: SSH-based transfers to/from remote servers
+
+### SSH Support
+- **SSH Key Authentication**: Support for custom SSH private keys
+- **Custom Ports**: Configure non-standard SSH ports
+- **SSH Options**: Pass additional SSH configuration options
+- **User@Host Format**: Standard SSH destination format support
+
+### Transfer Options
+- **Verbose Output**: Detailed transfer progress and file listings
+- **Dry Run**: Preview operations without making changes
+- **Exclude Patterns**: Skip files matching specific patterns
+- **Compression**: Enable compression for faster transfers over networks
+- **Progress Tracking**: Real-time transfer progress monitoring
 
 ## Enhanced Auto-Installation
 
@@ -81,13 +107,31 @@ if (result.isAvailable) {
     
     // Use RsyncManager for transfers
     const rsync = new RsyncManager();
-    await rsync.initialize();
     
-    // Perform file synchronization
-    const transferResult = await rsync.sync('./source/', './backup/', {
-        archive: true,
+    // Local file transfer
+    const localResult = await rsync.transfer('file.txt', '/backup/', {
+        verbose: true
+    });
+    
+    // Remote transfer to server
+    const remoteResult = await rsync.transferToRemote('src/', {
+        user: 'username',
+        host: 'server.com',
+        path: '/home/user/backup/'
+    }, {
+        recursive: true,
+        sshKey: '~/.ssh/id_rsa'
+    });
+    
+    // Mirror directory (exact copy with deletion)
+    const mirrorResult = await rsync.mirrorDirectory('src/', '/mirror/', {
         verbose: true,
-        compress: true
+        dryRun: true  // Preview changes first
+    });
+    
+    // Incremental backup
+    const backupResult = await rsync.backup('data/', '/backups/', {
+        exclude: ['*.log', 'node_modules/']
     });
     
 } else {
@@ -102,16 +146,29 @@ if (result.isAvailable) {
 # Check rsync availability
 npx ts-node src/cli/rsyncCli.ts check
 
-# Get installation instructions
+# File transfer operations
+npx ts-node src/cli/rsyncCli.ts transfer file.txt /backup/
+npx ts-node src/cli/rsyncCli.ts transfer --recursive src/ user@host:/backup/
+npx ts-node src/cli/rsyncCli.ts transfer --ssh-key ~/.ssh/id_rsa src/ user@host:/data/
+
+# Copy operations
+npx ts-node src/cli/rsyncCli.ts copy src/ /backup/
+npx ts-node src/cli/rsyncCli.ts copy --verbose --exclude "*.log" src/ /backup/
+
+# Mirror operations
+npx ts-node src/cli/rsyncCli.ts mirror src/ /mirror/
+npx ts-node src/cli/rsyncCli.ts mirror --dry-run src/ /mirror/
+
+# Backup operations
+npx ts-node src/cli/rsyncCli.ts backup src/ /backups/
+npx ts-node src/cli/rsyncCli.ts backup --exclude "node_modules" src/ /backups/
+
+# Installation commands
 npx ts-node src/cli/rsyncCli.ts install
-
-# Interactive installation guide
 npx ts-node src/cli/rsyncCli.ts install --interactive
-
-# Attempt automatic installation
 npx ts-node src/cli/rsyncCli.ts install --auto
 
-# Generate full compatibility report
+# Generate compatibility report
 npx ts-node src/cli/rsyncCli.ts report
 ```
 
@@ -148,6 +205,70 @@ Checks if rsync is available on the current system.
 Returns installation methods for the specified or current platform.
 
 #### `attemptAutoInstall(): Promise<{success: boolean, message: string}>`
+Attempts automatic installation using available package managers.
+
+#### `getCompatibilityReport(): Promise<string>`
+Generates a comprehensive compatibility and installation report.
+
+### RsyncManager
+
+#### Core Transfer Methods
+
+##### `transfer(source: string, destination: string, options?: RsyncOptions): Promise<RsyncResult>`
+Basic file/folder transfer to local or remote destination.
+
+##### `transferToRemote(source: string, target: TransferTarget, options?: RsyncOptions): Promise<RsyncResult>`
+Transfer files to a remote server via SSH.
+
+##### `transferFromRemote(source: TransferTarget, destination: string, options?: RsyncOptions): Promise<RsyncResult>`
+Download files from a remote server via SSH.
+
+#### Specialized Operations
+
+##### `copyFolder(source: string, destination: string, options?: RsyncOptions): Promise<RsyncResult>`
+Copy folders recursively with progress tracking.
+
+##### `mirrorDirectory(source: string, destination: string, options?: RsyncOptions): Promise<RsyncResult>`
+Create exact mirror of source (deletes extra files in destination).
+
+##### `backup(source: string, backupDir: string, options?: RsyncOptions): Promise<RsyncResult>`
+Create incremental backup using hard links for space efficiency.
+
+### Interfaces
+
+#### `RsyncOptions`
+```typescript
+interface RsyncOptions {
+    verbose?: boolean;          // Enable verbose output
+    recursive?: boolean;        // Recursive directory transfer
+    delete?: boolean;          // Delete files not in source
+    dryRun?: boolean;          // Preview without making changes
+    compress?: boolean;        // Enable compression
+    exclude?: string[];        // Exclude patterns
+    sshKey?: string;          // SSH private key path
+    port?: number;            // SSH port number
+    sshOptions?: string;      // Additional SSH options
+}
+```
+
+#### `TransferTarget`
+```typescript
+interface TransferTarget {
+    user: string;             // SSH username
+    host: string;             // Remote hostname/IP
+    path: string;             // Remote path
+}
+```
+
+#### `RsyncResult`
+```typescript
+interface RsyncResult {
+    success: boolean;         // Operation success status
+    exitCode?: number;        // Command exit code
+    output?: string;          // Command output
+    error?: string;           // Error message
+}
+```
 Attempts automatic installation using the best available method.
 
 #### `getCompatibilityReport(): Promise<string>`

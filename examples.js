@@ -44,9 +44,123 @@ async function libraryExamples() {
         console.error('Error generating report:', error);
     }
 
-    // Example 4: Using RsyncManager
-    console.log(chalk.yellow('\n4. RsyncManager Usage'));
+    // Example 4: Using RsyncManager for local transfers
+    console.log(chalk.yellow('\n4. Local File Transfer'));
     const rsyncManager = new RsyncManager();
+    
+    try {
+        // Check if we have rsync available first
+        const isCompatible = await RsyncCompatibilityChecker.checkCompatibility();
+        if (!isCompatible.isAvailable) {
+            console.log(chalk.red('Rsync not available, skipping transfer examples'));
+            console.log(chalk.yellow('Run installation command to get rsync'));
+            return;
+        }
+
+        // Example: Copy a file
+        console.log(chalk.cyan('  - File copy example:'));
+        console.log('    Source: package.json → Destination: /tmp/package-backup.json');
+        
+        // In a real scenario, you would uncomment and run:
+        /*
+        const copyResult = await rsyncManager.transfer('package.json', '/tmp/package-backup.json', {
+            verbose: true
+        });
+        console.log('Copy result:', copyResult.success ? 'Success' : copyResult.error);
+        */
+        console.log('    (Commented out to avoid actual file operations in example)');
+
+        // Example: Copy folder recursively
+        console.log(chalk.cyan('\n  - Folder copy example:'));
+        console.log('    Source: src/ → Destination: /tmp/src-backup/');
+        
+        /*
+        const folderResult = await rsyncManager.copyFolder('src/', '/tmp/src-backup/', {
+            verbose: true,
+            recursive: true
+        });
+        console.log('Folder copy result:', folderResult.success ? 'Success' : folderResult.error);
+        */
+        console.log('    (Commented out to avoid actual file operations in example)');
+
+    } catch (error) {
+        console.error(chalk.red('Error in transfer examples:'), error);
+    }
+
+    // Example 5: Remote transfer examples
+    console.log(chalk.yellow('\n5. Remote Transfer Examples'));
+    try {
+        // Remote copy example
+        console.log(chalk.cyan('  - Remote copy example:'));
+        console.log('    Transfer to remote server: user@server.com:/home/user/backup/');
+        
+        /*
+        const remoteResult = await rsyncManager.transferToRemote('src/', {
+            user: 'username',
+            host: 'server.com', 
+            path: '/home/user/backup/'
+        }, {
+            verbose: true,
+            recursive: true,
+            sshKey: '~/.ssh/id_rsa'
+        });
+        console.log('Remote transfer result:', remoteResult.success ? 'Success' : remoteResult.error);
+        */
+        console.log('    (Commented out - requires actual remote server)');
+
+        // Remote download example
+        console.log(chalk.cyan('\n  - Remote download example:'));
+        console.log('    Download from remote: user@server.com:/home/user/data/ → ./downloads/');
+        
+        /*
+        const downloadResult = await rsyncManager.transferFromRemote({
+            user: 'username',
+            host: 'server.com',
+            path: '/home/user/data/'
+        }, './downloads/', {
+            verbose: true,
+            recursive: true
+        });
+        console.log('Download result:', downloadResult.success ? 'Success' : downloadResult.error);
+        */
+        console.log('    (Commented out - requires actual remote server)');
+
+    } catch (error) {
+        console.error(chalk.red('Error in remote transfer examples:'), error);
+    }
+
+    // Example 6: Advanced operations
+    console.log(chalk.yellow('\n6. Advanced Operations'));
+    try {
+        // Mirror directory
+        console.log(chalk.cyan('  - Mirror directory (exact copy with deletion):'));
+        console.log('    Mirror src/ to /tmp/mirror/ (deletes extra files in destination)');
+        
+        /*
+        const mirrorResult = await rsyncManager.mirrorDirectory('src/', '/tmp/mirror/', {
+            verbose: true,
+            dryRun: true  // Show what would be done without doing it
+        });
+        console.log('Mirror result:', mirrorResult.success ? 'Success' : mirrorResult.error);
+        */
+        console.log('    (Commented out to avoid actual file operations)');
+
+        // Incremental backup
+        console.log(chalk.cyan('\n  - Incremental backup:'));
+        console.log('    Create backup with hard links for unchanged files');
+        
+        /*
+        const backupResult = await rsyncManager.backup('src/', '/tmp/backups/', {
+            verbose: true,
+            exclude: ['*.log', 'node_modules/']
+        });
+        console.log('Backup result:', backupResult.success ? 'Success' : backupResult.error);
+        */
+        console.log('    (Commented out to avoid actual file operations)');
+
+    } catch (error) {
+        console.error(chalk.red('Error in advanced operations:'), error);
+    }
     
     // Set up event listeners
     rsyncManager.on('ready', (result) => {
@@ -118,10 +232,41 @@ async function cliExamples() {
     console.log('npx ts-node src/cli/rsyncCli.ts install --interactive    # Interactive guide');
     console.log('npx ts-node src/cli/rsyncCli.ts report                   # Full compatibility report');
     
+    console.log(chalk.yellow('\nFile Transfer Commands:'));
+    console.log('npx ts-node src/cli/rsyncCli.ts transfer file.txt /tmp/  # Transfer file to local path');
+    console.log('npx ts-node src/cli/rsyncCli.ts transfer src/ user@host:/backup/ # Transfer to remote');
+    console.log('npx ts-node src/cli/rsyncCli.ts transfer --recursive --verbose src/ /backup/');
+    console.log('npx ts-node src/cli/rsyncCli.ts transfer --ssh-key ~/.ssh/id_rsa src/ user@host:/data/');
+    console.log('npx ts-node src/cli/rsyncCli.ts transfer --port 2222 --delete src/ user@host:/mirror/');
+    
+    console.log(chalk.yellow('\nCopy Operations:'));
+    console.log('npx ts-node src/cli/rsyncCli.ts copy src/ /backup/       # Copy folder with progress');
+    console.log('npx ts-node src/cli/rsyncCli.ts copy --verbose --exclude "*.log" src/ /backup/');
+    
+    console.log(chalk.yellow('\nMirror Operations:'));
+    console.log('npx ts-node src/cli/rsyncCli.ts mirror src/ /mirror/     # Exact mirror (deletes extra files)');
+    console.log('npx ts-node src/cli/rsyncCli.ts mirror --dry-run src/ /mirror/ # Preview changes');
+    console.log('npx ts-node src/cli/rsyncCli.ts mirror --verbose src/ /mirror/');
+    
+    console.log(chalk.yellow('\nBackup Operations:'));
+    console.log('npx ts-node src/cli/rsyncCli.ts backup src/ /backups/    # Incremental backup');
+    console.log('npx ts-node src/cli/rsyncCli.ts backup --exclude "node_modules" src/ /backups/');
+    console.log('npx ts-node src/cli/rsyncCli.ts backup --verbose src/ /backups/');
+    
     console.log(chalk.yellow('\nPlatform-specific:'));
     console.log('npx ts-node src/cli/rsyncCli.ts install --platform win32 # Windows instructions');
     console.log('npx ts-node src/cli/rsyncCli.ts install --platform darwin # macOS instructions');
     console.log('npx ts-node src/cli/rsyncCli.ts install --platform linux # Linux instructions');
+    
+    console.log(chalk.yellow('\nRemote Examples:'));
+    console.log('# Transfer to remote server with SSH key');
+    console.log('npx ts-node src/cli/rsyncCli.ts transfer --ssh-key ~/.ssh/id_rsa --recursive src/ user@server.com:/home/user/backup/');
+    console.log('');
+    console.log('# Download from remote server');
+    console.log('npx ts-node src/cli/rsyncCli.ts transfer user@server.com:/data/ ./downloads/');
+    console.log('');
+    console.log('# Custom SSH port and options');
+    console.log('npx ts-node src/cli/rsyncCli.ts transfer --port 2222 --ssh-options "-o StrictHostKeyChecking=no" src/ user@server.com:/backup/');
 }
 
 async function realWorldExamples() {

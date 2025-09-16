@@ -4,6 +4,8 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { RsyncCompatibilityChecker } from '../sys/rsyncChecker.ts';
+import RsyncManager from '../sys/rsync.ts';
+import { existsSync } from 'fs';
 
 const program = new Command();
 
@@ -115,6 +117,208 @@ program
             console.log(report);
         } catch (error) {
             console.error(chalk.red('Error generating report:'), error);
+            process.exit(1);
+        }
+    });
+
+// Transfer command
+program
+    .command('transfer')
+    .description('Transfer files or folders to a destination')
+    .argument('<source>', 'Source file or folder path')
+    .argument('<destination>', 'Destination path (can be remote with user@host:path format)')
+    .option('-s, --ssh-key <path>', 'SSH private key file path')
+    .option('-p, --port <number>', 'SSH port number')
+    .option('--ssh-options <options>', 'Additional SSH options')
+    .option('-r, --recursive', 'Transfer directories recursively')
+    .option('-v, --verbose', 'Verbose output')
+    .option('--delete', 'Delete files in destination that don\'t exist in source')
+    .action(async (source, destination, options) => {
+        try {
+            // Check if source exists
+            if (!existsSync(source)) {
+                console.error(chalk.red('Error: Source path does not exist:'), source);
+                process.exit(1);
+            }
+
+            // Check compatibility first
+            const isCompatible = await RsyncCompatibilityChecker.checkCompatibility();
+            if (!isCompatible) {
+                console.error(chalk.red('Error: rsync is not available on this system.'));
+                console.log(chalk.yellow('Run "npx fast-transfer install" to install rsync.'));
+                process.exit(1);
+            }
+
+            const rsyncManager = new RsyncManager();
+            const rsyncOptions = {
+                verbose: options.verbose || false,
+                recursive: options.recursive || false,
+                delete: options.delete || false,
+                sshOptions: options.sshOptions,
+                sshKey: options.sshKey,
+                port: options.port ? parseInt(options.port) : undefined
+            };
+
+            console.log(chalk.blue(`Transferring ${source} to ${destination}...`));
+            
+            const result = await rsyncManager.transfer(source, destination, rsyncOptions);
+            
+            if (result.success) {
+                console.log(chalk.green('Transfer completed successfully!'));
+                if (options.verbose) {
+                    console.log('Output:', result.output);
+                }
+            } else {
+                console.error(chalk.red('Transfer failed:'), result.error);
+                process.exit(1);
+            }
+        } catch (error) {
+            console.error(chalk.red('Error during transfer:'), error);
+            process.exit(1);
+        }
+    });
+
+// Copy command (recursive copy with progress)
+program
+    .command('copy')
+    .description('Copy files or folders with progress display')
+    .argument('<source>', 'Source file or folder path')
+    .argument('<destination>', 'Destination path')
+    .option('-v, --verbose', 'Verbose output')
+    .option('--exclude <pattern>', 'Exclude files matching pattern')
+    .action(async (source, destination, options) => {
+        try {
+            if (!existsSync(source)) {
+                console.error(chalk.red('Error: Source path does not exist:'), source);
+                process.exit(1);
+            }
+
+            const isCompatible = await RsyncCompatibilityChecker.checkCompatibility();
+            if (!isCompatible) {
+                console.error(chalk.red('Error: rsync is not available on this system.'));
+                console.log(chalk.yellow('Run "npx fast-transfer install" to install rsync.'));
+                process.exit(1);
+            }
+
+            const rsyncManager = new RsyncManager();
+            const rsyncOptions = {
+                verbose: options.verbose || false,
+                recursive: true,
+                exclude: options.exclude ? [options.exclude] : undefined
+            };
+
+            console.log(chalk.blue(`Copying ${source} to ${destination}...`));
+            
+            const result = await rsyncManager.copyFolder(source, destination, rsyncOptions);
+            
+            if (result.success) {
+                console.log(chalk.green('Copy completed successfully!'));
+                if (options.verbose) {
+                    console.log('Output:', result.output);
+                }
+            } else {
+                console.error(chalk.red('Copy failed:'), result.error);
+                process.exit(1);
+            }
+        } catch (error) {
+            console.error(chalk.red('Error during copy:'), error);
+            process.exit(1);
+        }
+    });
+
+// Mirror command (exact copy with deletion)
+program
+    .command('mirror')
+    .description('Mirror source to destination (deletes extra files in destination)')
+    .argument('<source>', 'Source folder path')
+    .argument('<destination>', 'Destination folder path')
+    .option('-v, --verbose', 'Verbose output')
+    .option('--dry-run', 'Show what would be done without actually doing it')
+    .action(async (source, destination, options) => {
+        try {
+            if (!existsSync(source)) {
+                console.error(chalk.red('Error: Source path does not exist:'), source);
+                process.exit(1);
+            }
+
+            const isCompatible = await RsyncCompatibilityChecker.checkCompatibility();
+            if (!isCompatible) {
+                console.error(chalk.red('Error: rsync is not available on this system.'));
+                console.log(chalk.yellow('Run "npx fast-transfer install" to install rsync.'));
+                process.exit(1);
+            }
+
+            const rsyncManager = new RsyncManager();
+            const rsyncOptions = {
+                verbose: options.verbose || false,
+                dryRun: options.dryRun || false
+            };
+
+            console.log(chalk.blue(`Mirroring ${source} to ${destination}...`));
+            if (options.dryRun) {
+                console.log(chalk.yellow('DRY RUN - No files will be modified'));
+            }
+            
+            const result = await rsyncManager.mirrorDirectory(source, destination, rsyncOptions);
+            
+            if (result.success) {
+                console.log(chalk.green('Mirror completed successfully!'));
+                if (options.verbose) {
+                    console.log('Output:', result.output);
+                }
+            } else {
+                console.error(chalk.red('Mirror failed:'), result.error);
+                process.exit(1);
+            }
+        } catch (error) {
+            console.error(chalk.red('Error during mirror:'), error);
+            process.exit(1);
+        }
+    });
+
+// Backup command
+program
+    .command('backup')
+    .description('Create incremental backup with hard links')
+    .argument('<source>', 'Source folder path')
+    .argument('<backup-dir>', 'Backup directory path')
+    .option('-v, --verbose', 'Verbose output')
+    .option('--exclude <pattern>', 'Exclude files matching pattern')
+    .action(async (source, backupDir, options) => {
+        try {
+            if (!existsSync(source)) {
+                console.error(chalk.red('Error: Source path does not exist:'), source);
+                process.exit(1);
+            }
+
+            const isCompatible = await RsyncCompatibilityChecker.checkCompatibility();
+            if (!isCompatible) {
+                console.error(chalk.red('Error: rsync is not available on this system.'));
+                console.log(chalk.yellow('Run "npx fast-transfer install" to install rsync.'));
+                process.exit(1);
+            }
+
+            const rsyncManager = new RsyncManager();
+            const rsyncOptions = {
+                verbose: options.verbose || false,
+                exclude: options.exclude ? [options.exclude] : undefined
+            };
+
+            console.log(chalk.blue(`Creating backup of ${source} in ${backupDir}...`));
+            
+            const result = await rsyncManager.backup(source, backupDir, rsyncOptions);
+            
+            if (result.success) {
+                console.log(chalk.green('Backup completed successfully!'));
+                if (options.verbose) {
+                    console.log('Output:', result.output);
+                }
+            } else {
+                console.error(chalk.red('Backup failed:'), result.error);
+                process.exit(1);
+            }
+        } catch (error) {
+            console.error(chalk.red('Error during backup:'), error);
             process.exit(1);
         }
     });
