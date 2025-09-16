@@ -4,7 +4,7 @@
  * Test script to demonstrate enhanced installation area checking
  */
 
-import { RsyncCompatibilityChecker } from './src/sys/rsyncChecker.js';
+import { RsyncCompatibilityChecker } from '../src/sys/rsyncChecker.js';
 import chalk from 'chalk';
 
 async function testEnhancedChecking() {

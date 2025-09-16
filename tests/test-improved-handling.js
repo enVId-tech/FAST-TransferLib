@@ -4,7 +4,7 @@
  * Test script to demonstrate improved error handling for installation issues
  */
 
-import { RsyncCompatibilityChecker } from './src/sys/rsyncChecker.js';
+import { RsyncCompatibilityChecker } from '../src/sys/rsyncChecker.js';
 import chalk from 'chalk';
 
 async function testImprovedErrorHandling() {
