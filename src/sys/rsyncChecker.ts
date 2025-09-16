@@ -16,6 +16,7 @@ export interface InstallationMethod {
     command: string;
     description: string;
     requiresAdmin: boolean;
+    isExecutable: boolean;  // New property to indicate if command can be executed automatically
 }
 
 /**
@@ -74,31 +75,36 @@ export class RsyncCompatibilityChecker {
                         method: 'Chocolatey',
                         command: 'choco install rsync',
                         description: 'Install via Chocolatey package manager',
-                        requiresAdmin: true
+                        requiresAdmin: true,
+                        isExecutable: true
                     },
                     {
                         method: 'Scoop',
                         command: 'scoop install rsync',
                         description: 'Install via Scoop package manager',
-                        requiresAdmin: false
+                        requiresAdmin: false,
+                        isExecutable: true
                     },
                     {
                         method: 'WSL2',
                         command: 'wsl --install -d Ubuntu && wsl sudo apt update && wsl sudo apt install rsync',
                         description: 'Install Ubuntu WSL2 and rsync within it',
-                        requiresAdmin: true
+                        requiresAdmin: true,
+                        isExecutable: true
                     },
                     {
                         method: 'Git Bash',
-                        command: 'Download Git for Windows (includes rsync in Git Bash)',
+                        command: 'winget install Git.Git',
                         description: 'Git for Windows includes rsync in Git Bash environment',
-                        requiresAdmin: false
+                        requiresAdmin: false,
+                        isExecutable: true
                     },
                     {
                         method: 'Cygwin',
-                        command: 'Download Cygwin installer and select rsync package',
-                        description: 'Install via Cygwin Unix-like environment',
-                        requiresAdmin: false
+                        command: 'Manual installation required - Download Cygwin installer from https://www.cygwin.com/ and select rsync package',
+                        description: 'Install via Cygwin Unix-like environment (manual setup required)',
+                        requiresAdmin: false,
+                        isExecutable: false
                     }
                 ];
 
@@ -108,19 +114,22 @@ export class RsyncCompatibilityChecker {
                         method: 'Homebrew',
                         command: 'brew install rsync',
                         description: 'Install via Homebrew package manager (recommended)',
-                        requiresAdmin: false
+                        requiresAdmin: false,
+                        isExecutable: true
                     },
                     {
                         method: 'MacPorts',
                         command: 'sudo port install rsync',
                         description: 'Install via MacPorts package manager',
-                        requiresAdmin: true
+                        requiresAdmin: true,
+                        isExecutable: true
                     },
                     {
                         method: 'Xcode Command Line Tools',
                         command: 'xcode-select --install',
                         description: 'May include rsync with development tools',
-                        requiresAdmin: false
+                        requiresAdmin: false,
+                        isExecutable: true
                     }
                 ];
 
@@ -130,37 +139,43 @@ export class RsyncCompatibilityChecker {
                         method: 'APT (Debian/Ubuntu)',
                         command: 'sudo apt update && sudo apt install rsync',
                         description: 'Install on Debian-based distributions',
-                        requiresAdmin: true
+                        requiresAdmin: true,
+                        isExecutable: true
                     },
                     {
                         method: 'YUM (CentOS/RHEL)',
                         command: 'sudo yum install rsync',
                         description: 'Install on Red Hat-based distributions',
-                        requiresAdmin: true
+                        requiresAdmin: true,
+                        isExecutable: true
                     },
                     {
                         method: 'DNF (Fedora)',
                         command: 'sudo dnf install rsync',
                         description: 'Install on Fedora',
-                        requiresAdmin: true
+                        requiresAdmin: true,
+                        isExecutable: true
                     },
                     {
                         method: 'Pacman (Arch)',
                         command: 'sudo pacman -S rsync',
                         description: 'Install on Arch Linux',
-                        requiresAdmin: true
+                        requiresAdmin: true,
+                        isExecutable: true
                     },
                     {
                         method: 'Zypper (openSUSE)',
                         command: 'sudo zypper install rsync',
                         description: 'Install on openSUSE',
-                        requiresAdmin: true
+                        requiresAdmin: true,
+                        isExecutable: true
                     },
                     {
                         method: 'APK (Alpine)',
                         command: 'apk add rsync',
                         description: 'Install on Alpine Linux',
-                        requiresAdmin: true
+                        requiresAdmin: true,
+                        isExecutable: true
                     }
                 ];
 
@@ -170,7 +185,8 @@ export class RsyncCompatibilityChecker {
                         method: 'Package Manager',
                         command: 'Use your system\'s package manager to install rsync',
                         description: `Unknown platform: ${currentPlatform}`,
-                        requiresAdmin: true
+                        requiresAdmin: true,
+                        isExecutable: false
                     }
                 ];
         }
@@ -183,84 +199,200 @@ export class RsyncCompatibilityChecker {
         const platform = os.platform();
         const instructions = this.getInstallInstructions(platform);
         
-        // Find the most suitable automatic installation method
-        let selectedMethod: InstallationMethod | null = null;
+        // Get ordered list of methods to try
+        const methodsToTry = this.getOrderedInstallationMethods(platform, instructions);
+        
+        if (methodsToTry.length === 0) {
+            return {
+                success: false,
+                message: 'No automatic installation methods available for this platform'
+            };
+        }
 
-        if (platform === 'win32') {
-            // Try Scoop first (doesn't require admin), then Chocolatey
-            selectedMethod = instructions.find(m => m.method === 'Scoop') || 
-                           instructions.find(m => m.method === 'Chocolatey') || null;
-        } else if (platform === 'darwin') {
-            // Try Homebrew first
-            selectedMethod = instructions.find(m => m.method === 'Homebrew') || null;
-        } else if (platform === 'linux') {
-            // Try to detect the package manager
+        const attemptedMethods: string[] = [];
+        let lastError = '';
+
+        // Try each method in order until one succeeds
+        for (const method of methodsToTry) {
+            attemptedMethods.push(method.method);
+            
+            // Skip non-executable methods (manual installation required)
+            if (!method.isExecutable) {
+                console.log(`Skipping ${method.method} (manual installation required)`);
+                lastError = `${method.method} requires manual installation`;
+                continue;
+            }
+            
             try {
-                execSync('which apt', { stdio: 'ignore' });
-                selectedMethod = instructions.find(m => m.method.includes('APT')) || null;
-            } catch {
+                console.log(`Attempting to install rsync using ${method.method}...`);
+                console.log(`Running: ${method.command}`);
+
+                // Skip methods that require admin privileges on non-Windows systems
+                if (method.requiresAdmin && platform !== 'win32') {
+                    console.log(`Skipping ${method.method} (requires admin privileges)`);
+                    lastError = `${method.method} requires admin privileges`;
+                    continue;
+                }
+
+                // Check if the required tool is available before attempting installation
+                if (!this.isInstallationToolAvailable(method)) {
+                    console.log(`Skipping ${method.method} (tool not available)`);
+                    lastError = `${method.method} tool not available`;
+                    continue;
+                }
+
+                // Execute the installation command
+                execSync(method.command, { 
+                    stdio: 'inherit',
+                    timeout: 300000 // 5 minutes timeout
+                });
+
+                // Verify installation
+                const result = await this.checkCompatibility();
+                if (result.isAvailable) {
+                    return {
+                        success: true,
+                        message: `Successfully installed rsync ${result.version} using ${method.method}`
+                    };
+                } else {
+                    console.log(`${method.method} installation completed but rsync is still not available`);
+                    lastError = `${method.method} installation completed but rsync not found`;
+                    continue;
+                }
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                console.log(`${method.method} installation failed: ${errorMessage}`);
+                lastError = `${method.method} failed: ${errorMessage}`;
+                continue;
+            }
+        }
+
+        // All methods failed
+        return {
+            success: false,
+            message: `All installation methods failed. Attempted: ${attemptedMethods.join(', ')}. Last error: ${lastError}`
+        };
+    }
+
+    /**
+     * Get ordered list of installation methods to try for a platform
+     */
+    private static getOrderedInstallationMethods(platform: string, instructions: InstallationMethod[]): InstallationMethod[] {
+        // Filter to only executable methods for automatic installation
+        const executableMethods = instructions.filter(method => method.isExecutable);
+        
+        if (platform === 'win32') {
+            // Prefer non-admin methods first, then admin methods
+            const ordered: string[] = ['Scoop', 'Chocolatey', 'Git Bash', 'WSL2'];
+            return this.orderMethodsByPreference(executableMethods, ordered);
+        } else if (platform === 'darwin') {
+            // Try Homebrew first, then others
+            const ordered: string[] = ['Homebrew', 'MacPorts', 'Xcode Command Line Tools'];
+            return this.orderMethodsByPreference(executableMethods, ordered);
+        } else if (platform === 'linux') {
+            // Detect available package managers and order them
+            const availableManagers: string[] = [];
+            
+            // Check for package managers in order of preference
+            const managerChecks = [
+                { manager: 'APT', command: 'which apt' },
+                { manager: 'DNF', command: 'which dnf' },
+                { manager: 'YUM', command: 'which yum' },
+                { manager: 'Pacman', command: 'which pacman' },
+                { manager: 'Zypper', command: 'which zypper' },
+                { manager: 'APK', command: 'which apk' }
+            ];
+
+            for (const check of managerChecks) {
                 try {
-                    execSync('which dnf', { stdio: 'ignore' });
-                    selectedMethod = instructions.find(m => m.method.includes('DNF')) || null;
+                    execSync(check.command, { stdio: 'ignore' });
+                    availableManagers.push(check.manager);
                 } catch {
-                    try {
-                        execSync('which yum', { stdio: 'ignore' });
-                        selectedMethod = instructions.find(m => m.method.includes('YUM')) || null;
-                    } catch {
-                        try {
-                            execSync('which pacman', { stdio: 'ignore' });
-                            selectedMethod = instructions.find(m => m.method.includes('Pacman')) || null;
-                        } catch {
-                            // Fall back to first available method
-                            selectedMethod = instructions[0] || null;
-                        }
-                    }
+                    // Manager not available
                 }
             }
+
+            return this.orderMethodsByPreference(executableMethods, availableManagers);
         }
 
-        if (!selectedMethod) {
-            return {
-                success: false,
-                message: 'No automatic installation method available for this platform'
-            };
-        }
+        // Default: return all executable methods, non-admin first
+        return executableMethods.filter(method => !method.requiresAdmin)
+                                .concat(executableMethods.filter(method => method.requiresAdmin));
+    }
 
+    /**
+     * Order installation methods by preference
+     */
+    private static orderMethodsByPreference(instructions: InstallationMethod[], preferenceOrder: string[]): InstallationMethod[] {
+        const ordered: InstallationMethod[] = [];
+        
+        // Add methods in preference order
+        for (const preferred of preferenceOrder) {
+            const method = instructions.find(m => m.method.includes(preferred));
+            if (method) {
+                ordered.push(method);
+            }
+        }
+        
+        // Add any remaining methods not in preference list
+        for (const method of instructions) {
+            if (!ordered.includes(method)) {
+                ordered.push(method);
+            }
+        }
+        
+        return ordered;
+    }
+
+    /**
+     * Check if the installation tool for a method is available
+     */
+    private static isInstallationToolAvailable(method: InstallationMethod): boolean {
         try {
-            console.log(`Attempting to install rsync using ${selectedMethod.method}...`);
-            console.log(`Running: ${selectedMethod.command}`);
-
-            if (selectedMethod.requiresAdmin && platform !== 'win32') {
-                return {
-                    success: false,
-                    message: `Manual installation required. Run: ${selectedMethod.command}`
-                };
+            if (method.method === 'Chocolatey') {
+                execSync('choco --version', { stdio: 'ignore' });
+                return true;
+            } else if (method.method === 'Scoop') {
+                execSync('scoop --version', { stdio: 'ignore' });
+                return true;
+            } else if (method.method === 'Git Bash') {
+                // Check if winget is available for installing Git
+                execSync('winget --version', { stdio: 'ignore' });
+                return true;
+            } else if (method.method === 'WSL2') {
+                // Check if WSL is available
+                execSync('wsl --status', { stdio: 'ignore' });
+                return true;
+            } else if (method.method === 'Homebrew') {
+                execSync('brew --version', { stdio: 'ignore' });
+                return true;
+            } else if (method.method === 'MacPorts') {
+                execSync('port version', { stdio: 'ignore' });
+                return true;
+            } else if (method.method.includes('APT')) {
+                execSync('which apt', { stdio: 'ignore' });
+                return true;
+            } else if (method.method.includes('DNF')) {
+                execSync('which dnf', { stdio: 'ignore' });
+                return true;
+            } else if (method.method.includes('YUM')) {
+                execSync('which yum', { stdio: 'ignore' });
+                return true;
+            } else if (method.method.includes('Pacman')) {
+                execSync('which pacman', { stdio: 'ignore' });
+                return true;
+            } else if (method.method.includes('Zypper')) {
+                execSync('which zypper', { stdio: 'ignore' });
+                return true;
+            } else if (method.method.includes('APK')) {
+                execSync('which apk', { stdio: 'ignore' });
+                return true;
             }
-
-            // Execute the installation command
-            execSync(selectedMethod.command, { 
-                stdio: 'inherit',
-                timeout: 300000 // 5 minutes timeout
-            });
-
-            // Verify installation
-            const result = await this.checkCompatibility();
-            if (result.isAvailable) {
-                return {
-                    success: true,
-                    message: `Successfully installed rsync ${result.version} using ${selectedMethod.method}`
-                };
-            } else {
-                return {
-                    success: false,
-                    message: 'Installation completed but rsync is still not available'
-                };
-            }
-        } catch (error) {
-            return {
-                success: false,
-                message: `Installation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-            };
+            
+            // For methods without specific tool checks, assume available
+            return true;
+        } catch {
+            return false;
         }
     }
 

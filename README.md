@@ -5,11 +5,37 @@ A comprehensive TypeScript library for checking Rsync compatibility across all m
 ## Features
 
 - **Cross-platform compatibility checking** (Windows, macOS, Linux)
-- **Automatic installation detection** and guidance
+- **Enhanced automatic installation** with fallback methods
 - **Multiple installation methods** per platform
 - **CLI interface** for standalone usage
 - **Library interface** for programmatic usage
 - **Comprehensive error handling** and reporting
+
+## Enhanced Auto-Installation
+
+The automatic installation feature now intelligently tries multiple installation methods if the first one fails:
+
+1. **Platform Detection**: Automatically detects your operating system
+2. **Method Prioritization**: Orders installation methods by preference and availability
+3. **Executable vs Manual**: Distinguishes between commands that can be run automatically vs manual steps
+4. **Tool Availability Check**: Verifies package managers are installed before attempting
+5. **Fallback Strategy**: If one method fails, automatically tries the next available executable option
+6. **Comprehensive Reporting**: Provides detailed feedback on what was attempted and why it failed
+
+```typescript
+// Enhanced auto-installation with fallback and proper command validation
+const result = await RsyncCompatibilityChecker.attemptAutoInstall();
+// Will try executable methods only:
+// Windows: Scoop → Chocolatey → Git Bash (via winget) → WSL2
+// macOS: Homebrew → MacPorts → Xcode Tools
+// Linux: APT → DNF → YUM → Pacman (based on availability)
+// Skips manual-only methods like Cygwin automatically
+```
+
+### Installation Method Types
+
+- **🟢 Automatic (auto)**: Can be executed automatically via command line
+- **🔘 Manual (manual)**: Requires manual download/setup (shown for reference but skipped in auto-install)
 
 ## Quick Start
 

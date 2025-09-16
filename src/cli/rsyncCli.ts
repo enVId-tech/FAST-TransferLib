@@ -69,9 +69,10 @@ program
                     
                     // Show manual instructions
                     const instructions = RsyncCompatibilityChecker.getInstallInstructions(options.platform);
-                    console.log(chalk.blue('\nManual installation options:'));
+                    console.log(chalk.blue('\nAll installation options:'));
                     instructions.forEach((method, index) => {
-                        console.log(chalk.yellow(`${index + 1}. ${method.method}`));
+                        const autoText = method.isExecutable ? chalk.green(' (auto)') : chalk.gray(' (manual)');
+                        console.log(chalk.yellow(`${index + 1}. ${method.method}${autoText}`));
                         console.log(`   ${method.command}`);
                         console.log(`   ${method.description}`);
                         console.log(`   Admin required: ${method.requiresAdmin ? 'Yes' : 'No'}\n`);
@@ -91,7 +92,8 @@ program
             console.log(chalk.blue.bold('\n=== Rsync Installation Instructions ==='));
             
             instructions.forEach((method, index) => {
-                console.log(chalk.yellow(`\n${index + 1}. ${method.method}`));
+                const autoText = method.isExecutable ? chalk.green(' (auto)') : chalk.gray(' (manual)');
+                console.log(chalk.yellow(`\n${index + 1}. ${method.method}${autoText}`));
                 console.log(chalk.white(`   Command: ${chalk.green(method.command)}`));
                 console.log(`   Description: ${method.description}`);
                 console.log(`   Requires Admin: ${method.requiresAdmin ? chalk.red('Yes') : chalk.green('No')}`);
@@ -129,7 +131,7 @@ async function interactiveInstallGuide(platform?: string) {
             name: 'selectedMethod',
             message: 'Choose an installation method:',
             choices: instructions.map((method, index) => ({
-                name: `${method.method} - ${method.description}`,
+                name: `${method.method} ${method.isExecutable ? '(auto)' : '(manual)'} - ${method.description}`,
                 value: index
             }))
         }
@@ -151,16 +153,22 @@ async function interactiveInstallGuide(platform?: string) {
     ]);
     
     if (shouldProceed) {
+        const choices = [
+            { name: 'Copy command to clipboard', value: 'copy' },
+            { name: 'Show command again', value: 'show' }
+        ];
+        
+        // Only offer automatic installation if method is executable
+        if (method.isExecutable) {
+            choices.push({ name: 'Attempt automatic installation', value: 'auto' });
+        }
+        
         const { action } = await inquirer.prompt([
             {
                 type: 'list',
                 name: 'action',
                 message: 'What would you like to do?',
-                choices: [
-                    { name: 'Copy command to clipboard', value: 'copy' },
-                    { name: 'Show command again', value: 'show' },
-                    { name: 'Attempt automatic installation', value: 'auto' }
-                ]
+                choices: choices
             }
         ]);
         
