@@ -87,8 +87,8 @@ export class RsyncCompatibilityChecker {
                     },
                     {
                         method: 'WSL2',
-                        command: 'wsl --install -d Ubuntu && wsl sudo apt update && wsl sudo apt install rsync',
-                        description: 'Install Ubuntu WSL2 and rsync within it',
+                        command: 'wsl sudo apt update && wsl sudo apt install -y rsync',
+                        description: 'Install rsync in existing WSL2 Ubuntu (or setup WSL2 if needed)',
                         requiresAdmin: true,
                         isExecutable: true
                     },
@@ -255,22 +255,99 @@ export class RsyncCompatibilityChecker {
                         message: `Successfully installed rsync ${result.version} using ${method.method}`
                     };
                 } else {
+                    // Special handling for methods that might need additional steps
+                    if (method.method === 'Git Bash') {
+                        console.log('Git installed but rsync not found. Checking if rsync is available in Git Bash...');
+                        // Try to find rsync in Git installation
+                        try {
+                            execSync('where git', { stdio: 'pipe' });
+                            const gitResult = await this.checkRsyncInGitBash();
+                            if (gitResult.isAvailable) {
+                                return {
+                                    success: true,
+                                    message: `Rsync is available in Git Bash installation`
+                                };
+                            }
+                        } catch {
+                            // Git not found in PATH
+                        }
+                    } else if (method.method === 'WSL2') {
+                        console.log('WSL2 setup completed. Checking if rsync is available in WSL...');
+                        const wslResult = await this.checkRsyncInWSL();
+                        if (wslResult.isAvailable) {
+                            return {
+                                success: true,
+                                message: `Rsync is available in WSL2`
+                            };
+                        }
+                    }
+                    
                     console.log(`${method.method} installation completed but rsync is still not available`);
                     lastError = `${method.method} installation completed but rsync not found`;
                     continue;
                 }
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-                console.log(`${method.method} installation failed: ${errorMessage}`);
-                lastError = `${method.method} failed: ${errorMessage}`;
+                
+                // Enhanced error handling for specific scenarios
+                if (method.method === 'Chocolatey' && errorMessage.includes('Access to the path')) {
+                    console.log(`${method.method} failed due to permissions. Try running as administrator.`);
+                    lastError = `${method.method} requires administrator privileges`;
+                } else if (method.method === 'Git Bash' && errorMessage.includes('already installed')) {
+                    console.log('Git is already installed. Checking for rsync availability...');
+                    // Check if rsync is available in existing Git installation
+                    const gitResult = await this.checkRsyncInGitBash();
+                    if (gitResult.isAvailable) {
+                        return {
+                            success: true,
+                            message: `Rsync found in existing Git Bash installation`
+                        };
+                    }
+                    lastError = `Git installed but rsync not found in Git Bash`;
+                } else if (method.method === 'WSL2' && errorMessage.includes('already exists')) {
+                    console.log('WSL Ubuntu already exists. Attempting to install rsync inside WSL...');
+                    try {
+                        execSync('wsl sudo apt update && wsl sudo apt install -y rsync', { 
+                            stdio: 'inherit',
+                            timeout: 300000
+                        });
+                        const wslResult = await this.checkRsyncInWSL();
+                        if (wslResult.isAvailable) {
+                            return {
+                                success: true,
+                                message: `Successfully installed rsync in existing WSL2 Ubuntu`
+                            };
+                        }
+                        lastError = `WSL rsync installation completed but not accessible`;
+                    } catch (wslError) {
+                        console.log(`Failed to install rsync in WSL: ${wslError}`);
+                        lastError = `WSL rsync installation failed: ${wslError}`;
+                    }
+                } else {
+                    console.log(`${method.method} installation failed: ${errorMessage}`);
+                    lastError = `${method.method} failed: ${errorMessage}`;
+                }
                 continue;
             }
         }
 
-        // All methods failed
+        // All methods failed - provide helpful guidance
+        let guidanceMessage = `All installation methods failed. Attempted: ${attemptedMethods.join(', ')}.`;
+        
+        if (platform === 'win32') {
+            guidanceMessage += '\n\nRecommended next steps:\n';
+            guidanceMessage += '1. Run PowerShell as Administrator and try: choco install rsync\n';
+            guidanceMessage += '2. Or install Scoop and try: scoop install rsync\n';
+            guidanceMessage += '3. Or use WSL2: wsl --install -d Ubuntu then wsl sudo apt install rsync\n';
+            guidanceMessage += '4. Or download Git for Windows which includes rsync in Git Bash\n';
+            guidanceMessage += `\nLast error: ${lastError}`;
+        } else {
+            guidanceMessage += `\nLast error: ${lastError}`;
+        }
+
         return {
             success: false,
-            message: `All installation methods failed. Attempted: ${attemptedMethods.join(', ')}. Last error: ${lastError}`
+            message: guidanceMessage
         };
     }
 
@@ -345,8 +422,84 @@ export class RsyncCompatibilityChecker {
     }
 
     /**
-     * Check if the installation tool for a method is available
+     * Check if rsync is available in Git Bash
      */
+    private static async checkRsyncInGitBash(): Promise<RsyncCompatibilityResult> {
+        try {
+            // Try to find Git installation path
+            const gitPath = execSync('where git', { encoding: 'utf8', stdio: 'pipe' }).trim();
+            const gitDir = gitPath.split('\\').slice(0, -2).join('\\'); // Go up from bin/git.exe
+            
+            // Common paths for rsync in Git for Windows
+            const possiblePaths = [
+                `${gitDir}\\usr\\bin\\rsync.exe`,
+                `${gitDir}\\bin\\rsync.exe`,
+                `${gitDir}\\mingw64\\bin\\rsync.exe`
+            ];
+            
+            for (const path of possiblePaths) {
+                try {
+                    execSync(`"${path}" --version`, { stdio: 'ignore' });
+                    const versionOutput = execSync(`"${path}" --version`, { encoding: 'utf8', stdio: 'pipe' });
+                    const versionMatch = versionOutput.match(/rsync\s+version\s+([\d.]+)/i);
+                    const version = versionMatch ? versionMatch[1] : 'unknown';
+                    
+                    return {
+                        isAvailable: true,
+                        version,
+                        platform: 'win32',
+                        platformName: 'Windows (Git Bash)',
+                    };
+                } catch {
+                    // Try next path
+                }
+            }
+            
+            return {
+                isAvailable: false,
+                platform: 'win32',
+                platformName: 'Windows (Git Bash)',
+                errorMessage: 'Rsync not found in Git Bash installation'
+            };
+        } catch {
+            return {
+                isAvailable: false,
+                platform: 'win32',
+                platformName: 'Windows (Git Bash)',
+                errorMessage: 'Git not found or Git Bash not accessible'
+            };
+        }
+    }
+
+    /**
+     * Check if rsync is available in WSL
+     */
+    private static async checkRsyncInWSL(): Promise<RsyncCompatibilityResult> {
+        try {
+            const versionOutput = execSync('wsl rsync --version', { 
+                encoding: 'utf8', 
+                stdio: 'pipe',
+                timeout: 10000
+            });
+            
+            const versionMatch = versionOutput.match(/rsync\s+version\s+([\d.]+)/i);
+            const version = versionMatch ? versionMatch[1] : 'unknown';
+            
+            return {
+                isAvailable: true,
+                version,
+                platform: 'win32',
+                platformName: 'Windows (WSL2)',
+            };
+        } catch {
+            return {
+                isAvailable: false,
+                platform: 'win32',
+                platformName: 'Windows (WSL2)',
+                errorMessage: 'Rsync not found in WSL or WSL not accessible'
+            };
+        }
+    }
     private static isInstallationToolAvailable(method: InstallationMethod): boolean {
         try {
             if (method.method === 'Chocolatey') {
@@ -360,9 +513,19 @@ export class RsyncCompatibilityChecker {
                 execSync('winget --version', { stdio: 'ignore' });
                 return true;
             } else if (method.method === 'WSL2') {
-                // Check if WSL is available
-                execSync('wsl --status', { stdio: 'ignore' });
-                return true;
+                // Check if WSL is available and has a distribution
+                try {
+                    execSync('wsl --list', { stdio: 'ignore' });
+                    return true;
+                } catch {
+                    // If WSL2 is not available, try to install it first
+                    try {
+                        execSync('wsl --install -d Ubuntu', { stdio: 'ignore', timeout: 10000 });
+                        return true;
+                    } catch {
+                        return false;
+                    }
+                }
             } else if (method.method === 'Homebrew') {
                 execSync('brew --version', { stdio: 'ignore' });
                 return true;

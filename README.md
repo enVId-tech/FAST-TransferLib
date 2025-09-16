@@ -20,16 +20,27 @@ The automatic installation feature now intelligently tries multiple installation
 3. **Executable vs Manual**: Distinguishes between commands that can be run automatically vs manual steps
 4. **Tool Availability Check**: Verifies package managers are installed before attempting
 5. **Fallback Strategy**: If one method fails, automatically tries the next available executable option
-6. **Comprehensive Reporting**: Provides detailed feedback on what was attempted and why it failed
+6. **Enhanced Error Handling**: Intelligently handles common installation scenarios
+7. **Comprehensive Reporting**: Provides detailed feedback and next-step guidance
+
+### Smart Error Handling
+
+The system now handles common installation issues automatically:
+
+- **Permission Errors**: Detects Chocolatey permission issues and suggests running as admin
+- **Existing Installations**: When Git is already installed, checks for rsync in Git Bash paths
+- **WSL Scenarios**: Handles existing WSL distributions and installs rsync directly
+- **Timeout Management**: Better handling of long-running installation processes
+- **Detailed Guidance**: Provides specific next steps when all automatic methods fail
 
 ```typescript
-// Enhanced auto-installation with fallback and proper command validation
+// Enhanced auto-installation with intelligent error handling
 const result = await RsyncCompatibilityChecker.attemptAutoInstall();
-// Will try executable methods only:
-// Windows: Scoop → Chocolatey → Git Bash (via winget) → WSL2
-// macOS: Homebrew → MacPorts → Xcode Tools
-// Linux: APT → DNF → YUM → Pacman (based on availability)
-// Skips manual-only methods like Cygwin automatically
+// Now handles:
+// - Chocolatey "Access denied" → Suggests admin mode
+// - Git "already installed" → Checks Git Bash rsync paths
+// - WSL "already exists" → Installs rsync in existing Ubuntu
+// - Provides detailed next-step guidance on failure
 ```
 
 ### Installation Method Types
