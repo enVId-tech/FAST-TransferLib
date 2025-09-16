@@ -15,6 +15,9 @@
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
     "experimentalDecorators": true,
+    "allowJs": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
     "emitDecoratorMetadata": true,
     "lib": ["ES2020", "DOM"]
   },
