@@ -1,7 +1,7 @@
 {
   "name": "fast-transferlib",
   "version": "1.0.0",
-  "description": "A transfer library for FAST File Explorer",
+  "description": "A cross-platform transfer library for FAST File Explorer with automatic Rsync setup",
   "homepage": "https://github.com/enVId-tech/FAST-TransferLib#readme",
   "bugs": {
     "url": "https://github.com/enVId-tech/FAST-TransferLib/issues"
@@ -17,8 +17,37 @@
     "email": "erick.tran@etran.dev"
   },
   "type": "module",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "fast-transfer": "dist/cli.js"
+  },
   "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prepack": "npm run build",
+    "cli": "node dist/cli.js",
+    "example": "npm run build && node example.js",
     "test": "echo \"Error: no test specified\" && exit 1"
-  }
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^11.1.0",
+    "inquirer": "^9.2.12"
+  },
+  "devDependencies": {
+    "@types/node": "^20.8.0",
+    "@types/inquirer": "^9.0.7",
+    "typescript": "^5.2.2"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "keywords": [
+    "rsync",
+    "file-transfer",
+    "cross-platform",
+    "cli",
+    "typescript"
+  ]
 }
