@@ -1,0 +1,24 @@
+{
+  "name": "fast-transferlib",
+  "version": "1.0.0",
+  "description": "A transfer library for FAST File Explorer",
+  "homepage": "https://github.com/enVId-tech/FAST-TransferLib#readme",
+  "bugs": {
+    "url": "https://github.com/enVId-tech/FAST-TransferLib/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/enVId-tech/FAST-TransferLib.git"
+  },
+  "license": "GPL-3.0-only",
+  "author": {
+    "name": "Erick Tran",
+    "url": "https://github.com/enVId-tech",
+    "email": "erick.tran@etran.dev"
+  },
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
