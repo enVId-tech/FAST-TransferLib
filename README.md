@@ -16,12 +16,30 @@ A comprehensive TypeScript library for checking Rsync compatibility across all m
 The automatic installation feature now intelligently tries multiple installation methods if the first one fails:
 
 1. **Platform Detection**: Automatically detects your operating system
-2. **Method Prioritization**: Orders installation methods by preference and availability
-3. **Executable vs Manual**: Distinguishes between commands that can be run automatically vs manual steps
-4. **Tool Availability Check**: Verifies package managers are installed before attempting
-5. **Fallback Strategy**: If one method fails, automatically tries the next available executable option
-6. **Enhanced Error Handling**: Intelligently handles common installation scenarios
-7. **Comprehensive Reporting**: Provides detailed feedback and next-step guidance
+2. **Comprehensive Location Scanning**: Checks standard PATH and alternative installation locations
+3. **Intelligent Method Filtering**: Skips methods where rsync already exists or prerequisites aren't met
+4. **Executable vs Manual**: Distinguishes between commands that can be run automatically vs manual steps
+5. **Tool Availability Check**: Verifies package managers are installed before attempting
+6. **Fallback Strategy**: If one method fails, automatically tries the next available executable option
+7. **Enhanced Error Handling**: Intelligently handles common installation scenarios
+8. **Comprehensive Reporting**: Provides detailed feedback and next-step guidance
+
+### Smart Location Detection
+
+The system now performs comprehensive scanning for existing rsync installations:
+
+**Windows Scanning Locations:**
+- Standard PATH (`rsync --version`)
+- Git Bash: `git_dir\usr\bin\rsync.exe`, `git_dir\bin\rsync.exe`, `git_dir\mingw64\bin\rsync.exe`
+- WSL: `wsl rsync --version` (all distributions)
+- Scoop: `%USERPROFILE%\scoop\apps\rsync\current\rsync.exe`
+- Chocolatey: `C:\ProgramData\chocolatey\lib\rsync\tools\rsync.exe`
+
+**Smart Installation Logic:**
+- **Skip if Found**: If rsync exists in Git Bash, skips Git installation
+- **Skip if No Prerequisites**: If WSL isn't available, skips WSL method
+- **Validate Tools**: Checks if Scoop/Chocolatey are installed before attempting
+- **Existing Installation Handling**: Works with already-installed tools
 
 ### Smart Error Handling
 
@@ -34,13 +52,13 @@ The system now handles common installation issues automatically:
 - **Detailed Guidance**: Provides specific next steps when all automatic methods fail
 
 ```typescript
-// Enhanced auto-installation with intelligent error handling
-const result = await RsyncCompatibilityChecker.attemptAutoInstall();
-// Now handles:
-// - Chocolatey "Access denied" → Suggests admin mode
-// - Git "already installed" → Checks Git Bash rsync paths
-// - WSL "already exists" → Installs rsync in existing Ubuntu
-// - Provides detailed next-step guidance on failure
+// Enhanced auto-installation with comprehensive location checking
+const result = await RsyncCompatibilityChecker.checkCompatibility();
+// Now scans: PATH → Git Bash → WSL → Scoop → Chocolatey
+
+const installResult = await RsyncCompatibilityChecker.attemptAutoInstall();
+// Intelligently skips methods where rsync already exists
+// Only attempts installation where prerequisites are met
 ```
 
 ### Installation Method Types
