@@ -5,8 +5,8 @@
  * This file demonstrates both library usage and CLI capabilities
  */
 
-import { RsyncCompatibilityChecker } from './src/sys/rsyncChecker.ts';
-import RsyncManager from './src/sys/rsync.ts';
+import { RsyncCompatibilityChecker } from './src/rsync/lib/rsyncChecker.ts';
+import RsyncManager from './src/rsync/lib/rsync.ts';
 import chalk from 'chalk';
 
 async function libraryExamples() {

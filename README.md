@@ -89,8 +89,8 @@ const installResult = await RsyncCompatibilityChecker.attemptAutoInstall();
 
 ### Installation Method Types
 
-- **🟢 Automatic (auto)**: Can be executed automatically via command line
-- **🔘 Manual (manual)**: Requires manual download/setup (shown for reference but skipped in auto-install)
+- **Automatic (auto)**: Can be executed automatically via command line
+- **Manual (manual)**: Requires manual download/setup (shown for reference but skipped in auto-install)
 
 ## Quick Start
 

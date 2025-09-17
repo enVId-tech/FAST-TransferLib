@@ -4,8 +4,8 @@
  * Quick test of the transfer functionality
  */
 
-import { RsyncCompatibilityChecker } from '../src/sys/rsyncChecker.ts';
-import RsyncManager from '../src/sys/rsync.ts';
+import { RsyncCompatibilityChecker } from '../src/rsync/lib/rsyncChecker.ts';
+import RsyncManager from '../src/rsync/lib/rsync.ts';
 import chalk from 'chalk';
 
 async function quickTest() {
@@ -53,7 +53,7 @@ async function quickTest() {
             }
         });
 
-        console.log(chalk.green('\n✓ Transfer functionality is ready!'));
+        console.log(chalk.green('\nTransfer functionality is ready!'));
         console.log(chalk.yellow('Use the CLI commands to perform actual transfers:'));
         console.log('  npx ts-node src/cli/rsyncCli.ts transfer --help');
         

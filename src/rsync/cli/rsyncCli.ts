@@ -3,8 +3,8 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
-import { RsyncCompatibilityChecker } from '../sys/rsyncChecker.ts';
-import RsyncManager from '../sys/rsync.ts';
+import { RsyncCompatibilityChecker } from '../lib/rsyncChecker.ts';
+import RsyncManager from '../lib/rsync.ts';
 import { existsSync } from 'fs';
 
 const program = new Command();
