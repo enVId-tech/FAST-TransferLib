@@ -143,13 +143,22 @@ program
 
             // Check compatibility first
             const isCompatible = await RsyncCompatibilityChecker.checkCompatibility();
-            if (!isCompatible) {
+            if (!isCompatible.isAvailable) {
                 console.error(chalk.red('Error: rsync is not available on this system.'));
                 console.log(chalk.yellow('Run "npx fast-transfer install" to install rsync.'));
                 process.exit(1);
             }
 
             const rsyncManager = new RsyncManager();
+            
+            // Initialize the RsyncManager
+            console.log(chalk.blue('Initializing rsync manager...'));
+            const initialized = await rsyncManager.initialize();
+            if (!initialized) {
+                console.error(chalk.red('Error: Failed to initialize rsync manager.'));
+                process.exit(1);
+            }
+            
             const rsyncOptions = {
                 verbose: options.verbose || false,
                 recursive: options.recursive || false,
@@ -194,13 +203,22 @@ program
             }
 
             const isCompatible = await RsyncCompatibilityChecker.checkCompatibility();
-            if (!isCompatible) {
+            if (!isCompatible.isAvailable) {
                 console.error(chalk.red('Error: rsync is not available on this system.'));
                 console.log(chalk.yellow('Run "npx fast-transfer install" to install rsync.'));
                 process.exit(1);
             }
 
             const rsyncManager = new RsyncManager();
+            
+            // Initialize the RsyncManager
+            console.log(chalk.blue('Initializing rsync manager...'));
+            const initialized = await rsyncManager.initialize();
+            if (!initialized) {
+                console.error(chalk.red('Error: Failed to initialize rsync manager.'));
+                process.exit(1);
+            }
+            
             const rsyncOptions = {
                 verbose: options.verbose || false,
                 recursive: true,
@@ -242,13 +260,22 @@ program
             }
 
             const isCompatible = await RsyncCompatibilityChecker.checkCompatibility();
-            if (!isCompatible) {
+            if (!isCompatible.isAvailable) {
                 console.error(chalk.red('Error: rsync is not available on this system.'));
                 console.log(chalk.yellow('Run "npx fast-transfer install" to install rsync.'));
                 process.exit(1);
             }
 
             const rsyncManager = new RsyncManager();
+            
+            // Initialize the RsyncManager
+            console.log(chalk.blue('Initializing rsync manager...'));
+            const initialized = await rsyncManager.initialize();
+            if (!initialized) {
+                console.error(chalk.red('Error: Failed to initialize rsync manager.'));
+                process.exit(1);
+            }
+            
             const rsyncOptions = {
                 verbose: options.verbose || false,
                 dryRun: options.dryRun || false
@@ -292,13 +319,22 @@ program
             }
 
             const isCompatible = await RsyncCompatibilityChecker.checkCompatibility();
-            if (!isCompatible) {
+            if (!isCompatible.isAvailable) {
                 console.error(chalk.red('Error: rsync is not available on this system.'));
                 console.log(chalk.yellow('Run "npx fast-transfer install" to install rsync.'));
                 process.exit(1);
             }
 
             const rsyncManager = new RsyncManager();
+            
+            // Initialize the RsyncManager
+            console.log(chalk.blue('Initializing rsync manager...'));
+            const initialized = await rsyncManager.initialize();
+            if (!initialized) {
+                console.error(chalk.red('Error: Failed to initialize rsync manager.'));
+                process.exit(1);
+            }
+            
             const rsyncOptions = {
                 verbose: options.verbose || false,
                 exclude: options.exclude ? [options.exclude] : undefined
