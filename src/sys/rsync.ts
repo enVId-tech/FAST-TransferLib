@@ -105,7 +105,14 @@ class RsyncManager extends EventEmitter {
      * Build rsync command from options
      */
     private buildCommand(source: string, destination: string, options: RsyncOptions = {}): string[] {
-        const args: string[] = ['rsync'];
+        const args: string[] = [];
+        
+        // Add command prefix if needed (e.g., 'wsl' for WSL rsync)
+        if (this.compatibilityResult?.commandPrefix) {
+            args.push(this.compatibilityResult.commandPrefix);
+        }
+        
+        args.push('rsync');
 
         // Archive mode (includes -rlptgoD)
         if (options.archive !== false) {

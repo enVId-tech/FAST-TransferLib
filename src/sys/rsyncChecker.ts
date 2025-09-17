@@ -9,6 +9,7 @@ export interface RsyncCompatibilityResult {
     platformName: string;
     errorMessage?: string;
     installInstructions?: string;
+    commandPrefix?: string;  // Command prefix needed (e.g., 'wsl' for WSL rsync)
 }
 
 export interface InstallationMethod {
@@ -671,6 +672,7 @@ export class RsyncCompatibilityChecker {
                 version,
                 platform: 'win32',
                 platformName: 'Windows (WSL2)',
+                commandPrefix: 'wsl',  // WSL prefix needed for command execution
             };
         } catch {
             return {
