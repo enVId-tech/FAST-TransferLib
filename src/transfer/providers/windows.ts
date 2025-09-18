@@ -61,14 +61,12 @@ export class RobocopyProvider extends TransferProvider {
 
     async transfer(source: TransferTarget, destination: TransferTarget, options: TransferOptions = {}): Promise<TransferResult> {
         const startTime = Date.now();
-        let output = '';
-        let error = '';
         
         try {
             const args = this.buildRobocopyArgs(source, destination, options);
             
             if (options.dryRun) {
-                output = `Would execute: robocopy ${args.join(' ')}`;
+                const output = `Would execute: robocopy ${args.join(' ')}`;
                 return {
                     success: true,
                     exitCode: 0,
@@ -78,7 +76,8 @@ export class RobocopyProvider extends TransferProvider {
                     fallbackUsed: true
                 };
             }
-
+            
+            // Execute robocopy command using existing method
             const result = await this.executeRobocopy(args, options);
             
             // Robocopy exit codes: 0-7 are success, 8+ are errors
@@ -100,7 +99,7 @@ export class RobocopyProvider extends TransferProvider {
             return {
                 success: false,
                 exitCode: err.code || -1,
-                output,
+                output: '',
                 error: err.message,
                 duration: Date.now() - startTime,
                 method: 'robocopy',
@@ -443,10 +442,11 @@ export class XCopyProvider extends TransferProvider {
                     fallbackUsed: true
                 };
             }
-
+            
+            // Execute xcopy command using existing sync approach
             const output = execSync(`xcopy ${args.join(' ')}`, { 
                 encoding: 'utf8',
-                timeout: options.timeout ? options.timeout * 1000 : 300000 // 5 minute default
+                timeout: (options.timeout || 300) * 1000 // 5 minute default
             });
             
             const filesTransferred = this.parseXCopyOutput(output);

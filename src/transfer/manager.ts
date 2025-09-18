@@ -1,10 +1,11 @@
 import { EventEmitter } from 'events';
 import * as os from 'os';
-import { TransferProvider, TransferOptions, TransferResult, TransferTarget, TransferProgress } from './interfaces.ts';
+import { TransferProvider, TransferOptions, TransferResult, TransferTarget, TransferProgress, FallbackCapabilities } from './interfaces.ts';
 import { RobocopyProvider, XCopyProvider } from './providers/windows.ts';
 import { DittoProvider, CpProvider as MacCpProvider } from './providers/macos.ts';
 import { CpProvider, TarProvider, ScpProvider } from './providers/linux.ts';
 import { RsyncCompatibilityChecker } from '../rsync/lib/rsyncChecker.ts';
+import RsyncManager, { RsyncOptions, RsyncTransferResult } from '../rsync/lib/rsync.ts';
 
 export interface UnifiedTransferOptions extends TransferOptions {
     // Transfer method preferences
@@ -287,8 +288,6 @@ export class UnifiedTransferManager extends EventEmitter {
      * Create a wrapper provider for rsync functionality
      */
     private async createRsyncProvider(options: UnifiedTransferOptions): Promise<TransferProvider> {
-        // This would integrate with the existing rsync manager
-        // For now, return a placeholder that would wrap the existing RsyncManager
         return new RsyncWrapperProvider(options);
     }
 
@@ -394,9 +393,12 @@ class RsyncWrapperProvider extends TransferProvider {
         maxRetries: 10,
         preferredFor: ['all-purposes', 'network-transfer', 'incremental-backup']
     };
+    
+    private rsyncManager: RsyncManager;
 
     constructor(private options: UnifiedTransferOptions) {
         super();
+        this.rsyncManager = new RsyncManager();
     }
 
     async isAvailable(): Promise<boolean> {
@@ -415,15 +417,56 @@ class RsyncWrapperProvider extends TransferProvider {
     }
 
     async transfer(source: TransferTarget, destination: TransferTarget, options: TransferOptions): Promise<TransferResult> {
-        // This would integrate with the existing RsyncManager
-        // For now, return a placeholder result
-        return {
-            success: true,
-            exitCode: 0,
-            output: 'Rsync transfer completed (placeholder)',
-            method: 'rsync',
-            fallbackUsed: false
-        };
+        try {
+            // Initialize rsync manager if not already done
+            if (!this.rsyncManager.isReady()) {
+                await this.rsyncManager.initialize();
+            }
+            
+            // Convert unified options to rsync options
+            const rsyncOptions: RsyncOptions = {
+                archive: true,
+                verbose: options.verbose || false,
+                compress: options.compress || false,
+                delete: options.delete || false,
+                dryRun: options.dryRun || false,
+                progress: options.progress || true,
+                preserveLinks: options.preserveLinks !== false,
+                preservePerms: options.preservePerms !== false,
+                preserveTimes: options.preserveTimes !== false,
+                exclude: options.exclude,
+                include: options.include,
+                customArgs: options.customArgs
+            };
+
+            // Build source and destination strings
+            const sourceStr = this.buildTargetString(source);
+            const destStr = this.buildTargetString(destination);
+
+            // Execute transfer
+            const result: RsyncTransferResult = await this.rsyncManager.transfer(sourceStr, destStr, rsyncOptions);
+            
+            return {
+                success: result.success,
+                exitCode: result.exitCode,
+                output: result.output,
+                error: result.error,
+                method: 'rsync',
+                fallbackUsed: false,
+                bytesTransferred: result.bytesTransferred,
+                filesTransferred: result.filesTransferred,
+                duration: result.duration
+            };
+        } catch (error) {
+            return {
+                success: false,
+                exitCode: 1,
+                output: '',
+                error: error instanceof Error ? error.message : 'Unknown error',
+                method: 'rsync',
+                fallbackUsed: false
+            };
+        }
     }
 
     async cleanup(source: TransferTarget, destination: TransferTarget): Promise<void> {
@@ -438,6 +481,23 @@ class RsyncWrapperProvider extends TransferProvider {
     async validateTargets(source: TransferTarget, destination: TransferTarget): Promise<{ valid: boolean; errors: string[] }> {
         // Use existing rsync validation logic
         return { valid: true, errors: [] };
+    }
+    
+    private buildTargetString(target: TransferTarget): string {
+        if (target.isRemote) {
+            let targetStr = '';
+            if (target.user) {
+                targetStr += `${target.user}@`;
+            }
+            targetStr += target.host;
+            if (target.port && target.port !== 22) {
+                // For non-standard ports, we'd need to use SSH options
+                // This is simplified - real implementation would handle SSH properly
+            }
+            targetStr += `:${target.path}`;
+            return targetStr;
+        }
+        return target.path;
     }
 }
 
