@@ -23,3 +23,28 @@ export { SYSTEM } from './src/sys/system.js';
 
 // CLI (for programmatic access)
 export { default as RsyncCLI } from './src/rsync/cli/rsyncCli.js';
+
+// New unified transfer system
+export { 
+    UnifiedTransferManager, 
+    createUnifiedTransferManager 
+} from './src/transfer/manager.js';
+export type { 
+    UnifiedTransferOptions, 
+    MethodSelectionResult 
+} from './src/transfer/manager.js';
+
+// Transfer interfaces and types
+export type {
+    TransferOptions,
+    TransferResult,
+    TransferTarget,
+    TransferProgress,
+    TransferProvider,
+    FallbackCapabilities
+} from './src/transfer/interfaces.js';
+
+// Platform-specific providers (for advanced usage)
+export { RobocopyProvider, XCopyProvider } from './src/transfer/providers/windows.js';
+export { DittoProvider } from './src/transfer/providers/macos.js';
+export { CpProvider, TarProvider, ScpProvider } from './src/transfer/providers/linux.js';
