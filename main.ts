@@ -48,3 +48,30 @@ export type {
 export { RobocopyProvider, XCopyProvider } from './src/transfer/providers/windows.js';
 export { DittoProvider } from './src/transfer/providers/macos.js';
 export { CpProvider, TarProvider, ScpProvider } from './src/transfer/providers/linux.js';
+
+// Advanced transfer utilities
+export {
+    SSHProber,
+    NetworkConnectionManager,
+    FileEnumerator,
+    TransferSessionManager,
+    FileOperationsManager
+} from './src/transfer/advanced-utils.js';
+export type {
+    SSHProbeResult,
+    NetworkConnectionResult,
+    FileMetadata,
+    FileTransferTiming,
+    TransferSession,
+    CopyOperation
+} from './src/transfer/advanced-utils.js';
+
+// ZIP compression and transfer utilities
+export {
+    ZipTransferManager,
+    NetworkSpeedDetector
+} from './src/utils/zip-utils.js';
+export type {
+    ZipTransferOptions,
+    ZipResult
+} from './src/utils/zip-utils.js';
