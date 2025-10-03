@@ -1,6 +1,6 @@
 import * as os from 'os';
 import { execSync, spawn } from 'child_process';
-import { SYSTEM } from '../../sys/system.ts';
+import { SYSTEM } from '../../sys/system.js';
 
 export interface RsyncCompatibilityResult {
     isAvailable: boolean;

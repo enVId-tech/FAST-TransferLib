@@ -4,7 +4,7 @@
     "module": "ESNext",
     "moduleResolution": "node",
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": "./",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -16,13 +16,12 @@
     "allowSyntheticDefaultImports": true,
     "experimentalDecorators": true,
     "allowJs": true,
-    "allowImportingTsExtensions": true,
-    "noEmit": true,
     "emitDecoratorMetadata": true,
     "lib": ["ES2020", "DOM"]
   },
   "include": [
-    "src/**/*"
+    "src/**/*",
+    "main.ts"
   ],
   "exclude": [
     "node_modules",

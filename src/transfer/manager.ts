@@ -1,11 +1,11 @@
 import { EventEmitter } from 'events';
 import * as os from 'os';
-import { TransferProvider, TransferOptions, TransferResult, TransferTarget, TransferProgress, FallbackCapabilities } from './interfaces.ts';
-import { RobocopyProvider, XCopyProvider } from './providers/windows.ts';
-import { DittoProvider, CpProvider as MacCpProvider } from './providers/macos.ts';
-import { CpProvider, TarProvider, ScpProvider } from './providers/linux.ts';
-import { RsyncCompatibilityChecker } from '../rsync/lib/rsyncChecker.ts';
-import RsyncManager, { RsyncOptions, RsyncTransferResult } from '../rsync/lib/rsync.ts';
+import { TransferProvider, TransferOptions, TransferResult, TransferTarget, TransferProgress, FallbackCapabilities } from './interfaces.js';
+import { RobocopyProvider, XCopyProvider } from './providers/windows.js';
+import { DittoProvider, CpProvider as MacCpProvider } from './providers/macos.js';
+import { CpProvider, TarProvider, ScpProvider } from './providers/linux.js';
+import { RsyncCompatibilityChecker } from '../rsync/lib/rsyncChecker.js';
+import RsyncManager, { RsyncOptions, RsyncTransferResult } from '../rsync/lib/rsync.js';
 
 export interface UnifiedTransferOptions extends TransferOptions {
     // Transfer method preferences

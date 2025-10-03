@@ -1,6 +1,6 @@
 {
   "name": "fast-transferlib",
-  "version": "25.10.02-release.1",
+  "version": "25.10.02-release.2",
   "description": "A cross-platform transfer library for FAST File Explorer with automatic Rsync setup",
   "homepage": "https://github.com/enVId-tech/FAST-TransferLib#readme",
   "bugs": {
@@ -17,8 +17,14 @@
     "email": "erick.tran@etran.dev"
   },
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/main.js",
+  "types": "dist/main.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/main.js",
+      "types": "./dist/main.d.ts"
+    }
+  },
   "bin": {
     "fast-transfer": "dist/cli.js"
   },

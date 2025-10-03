@@ -1,7 +1,7 @@
 import { execSync, spawn } from 'child_process';
 import { existsSync, statSync, readdirSync } from 'fs';
 import { join, dirname, resolve, isAbsolute } from 'path';
-import { TransferProvider, TransferOptions, TransferResult, TransferTarget, FallbackCapabilities, TransferProgress } from '../interfaces.ts';
+import { TransferProvider, TransferOptions, TransferResult, TransferTarget, FallbackCapabilities, TransferProgress } from '../interfaces.js';
 
 /**
  * Windows Robocopy transfer provider

@@ -1,5 +1,5 @@
-import { RsyncCompatibilityChecker } from './rsyncChecker.ts';
-import type { RsyncCompatibilityResult } from './rsyncChecker.ts';
+import { RsyncCompatibilityChecker } from './rsyncChecker.js';
+import type { RsyncCompatibilityResult } from './rsyncChecker.js';
 import { execSync, spawn, ChildProcess } from 'child_process';
 import { EventEmitter } from 'events';
 
