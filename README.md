@@ -147,29 +147,29 @@ if (result.isAvailable) {
 npx ts-node src/cli/rsyncCli.ts check
 
 # File transfer operations
-npx ts-node src/cli/rsyncCli.ts transfer file.txt /backup/
-npx ts-node src/cli/rsyncCli.ts transfer --recursive src/ user@host:/backup/
-npx ts-node src/cli/rsyncCli.ts transfer --ssh-key ~/.ssh/id_rsa src/ user@host:/data/
+npx ts-node src/rsync/cli/rsyncCli.ts transfer file.txt /backup/
+npx ts-node src/rsync/cli/rsyncCli.ts transfer --recursive src/ user@host:/backup/
+npx ts-node src/rsync/cli/rsyncCli.ts transfer --ssh-key ~/.ssh/id_rsa src/ user@host:/data/
 
 # Copy operations
-npx ts-node src/cli/rsyncCli.ts copy src/ /backup/
-npx ts-node src/cli/rsyncCli.ts copy --verbose --exclude "*.log" src/ /backup/
+npx ts-node src/rsync/cli/rsyncCli.ts copy src/ /backup/
+npx ts-node src/rsync/cli/rsyncCli.ts copy --verbose --exclude "*.log" src/ /backup/
 
 # Mirror operations
-npx ts-node src/cli/rsyncCli.ts mirror src/ /mirror/
-npx ts-node src/cli/rsyncCli.ts mirror --dry-run src/ /mirror/
+npx ts-node src/rsync/cli/rsyncCli.ts mirror src/ /mirror/
+npx ts-node src/rsync/cli/rsyncCli.ts mirror --dry-run src/ /mirror/
 
 # Backup operations
-npx ts-node src/cli/rsyncCli.ts backup src/ /backups/
-npx ts-node src/cli/rsyncCli.ts backup --exclude "node_modules" src/ /backups/
+npx ts-node src/rsync/cli/rsyncCli.ts backup src/ /backups/
+npx ts-node src/rsync/cli/rsyncCli.ts backup --exclude "node_modules" src/ /backups/
 
 # Installation commands
-npx ts-node src/cli/rsyncCli.ts install
-npx ts-node src/cli/rsyncCli.ts install --interactive
-npx ts-node src/cli/rsyncCli.ts install --auto
+npx ts-node src/rsync/cli/rsyncCli.ts install
+npx ts-node src/rsync/cli/rsyncCli.ts install --interactive
+npx ts-node src/rsync/cli/rsyncCli.ts install --auto
 
 # Generate compatibility report
-npx ts-node src/cli/rsyncCli.ts report
+npx ts-node src/rsync/cli/rsyncCli.ts report
 ```
 
 ## Installation Instructions by Platform
