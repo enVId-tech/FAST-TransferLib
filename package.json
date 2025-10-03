@@ -1,6 +1,6 @@
 {
   "name": "fast-transferlib",
-  "version": "25.10.02-release.2",
+  "version": "25.10.02-release.4",
   "description": "A cross-platform transfer library for FAST File Explorer with automatic Rsync setup",
   "homepage": "https://github.com/enVId-tech/FAST-TransferLib#readme",
   "bugs": {
@@ -17,19 +17,31 @@
     "email": "erick.tran@etran.dev"
   },
   "type": "module",
-  "main": "dist/main.js",
-  "types": "dist/main.d.ts",
+  "main": "./dist/cjs/main.js",
+  "module": "./dist/main.js",
+  "types": "./dist/main.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/main.d.ts",
       "import": "./dist/main.js",
-      "types": "./dist/main.d.ts"
-    }
+      "require": "./dist/cjs/main.js",
+      "default": "./dist/main.js"
+    },
+    "./package.json": "./package.json"
   },
+  "files": [
+    "dist",
+    "dist/cjs/package.json",
+    "README.md",
+    "LICENSE"
+  ],
   "bin": {
     "fast-transfer": "dist/cli.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "npm run build:esm && npm run build:cjs",
+    "build:esm": "tsc -p tsconfig.json",
+    "build:cjs": "tsc -p tsconfig.cjs.json && node ./scripts/write-cjs-package.mjs",
     "dev": "tsc --watch",
     "prepack": "npm run build",
     "cli": "node dist/cli.js",
