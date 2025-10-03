@@ -1,6 +1,6 @@
 {
   "name": "fast-transferlib",
-  "version": "25.10.02-release.5",
+  "version": "25.10.02-release.6",
   "description": "A cross-platform transfer library for FAST File Explorer with automatic Rsync setup",
   "homepage": "https://github.com/enVId-tech/FAST-TransferLib#readme",
   "bugs": {

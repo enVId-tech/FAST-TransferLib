@@ -36,10 +36,28 @@ export class UnifiedTransferManager extends EventEmitter {
     private availableProviders: Map<string, TransferProvider> = new Map();
     private rsyncAvailable: boolean = false;
     private platformProviders: TransferProvider[] = [];
+    private initialized: boolean = false;
+    private initPromise: Promise<void> | null = null;
 
     constructor() {
         super();
         this.initializePlatformProviders();
+    }
+
+    /**
+     * Ensure the manager is initialized (lazy initialization)
+     */
+    private async ensureInitialized(): Promise<void> {
+        if (this.initialized) {
+            return;
+        }
+        
+        if (this.initPromise) {
+            return this.initPromise;
+        }
+        
+        this.initPromise = this.initialize();
+        await this.initPromise;
     }
 
     /**
@@ -82,6 +100,10 @@ export class UnifiedTransferManager extends EventEmitter {
      * Initialize the transfer manager by checking rsync availability and provider compatibility
      */
     async initialize(): Promise<void> {
+        if (this.initialized) {
+            return;
+        }
+        
         try {
             // Check rsync availability
             const rsyncResult = await RsyncCompatibilityChecker.checkCompatibility();
@@ -113,6 +135,8 @@ export class UnifiedTransferManager extends EventEmitter {
                 availableProviders: Array.from(this.availableProviders.keys())
             });
             
+            this.initialized = true;
+            
         } catch (error) {
             this.emit('error', error);
             throw error;
@@ -127,6 +151,7 @@ export class UnifiedTransferManager extends EventEmitter {
         destination: TransferTarget, 
         options: UnifiedTransferOptions = {}
     ): Promise<MethodSelectionResult> {
+        await this.ensureInitialized();
         
         // If user forces native tools, skip rsync
         if (options.forceNative) {
@@ -299,6 +324,7 @@ export class UnifiedTransferManager extends EventEmitter {
         destination: TransferTarget, 
         options: UnifiedTransferOptions = {}
     ): Promise<TransferResult & { methodUsed: MethodSelectionResult }> {
+        await this.ensureInitialized();
         
         const methodSelection = await this.selectTransferMethod(source, destination, options);
         const provider = methodSelection.provider;
@@ -343,10 +369,11 @@ export class UnifiedTransferManager extends EventEmitter {
     /**
      * Get information about available transfer methods
      */
-    getAvailableMethods(): { 
+    async getAvailableMethods(): Promise<{ 
         rsyncAvailable: boolean; 
         fallbackMethods: Array<{ name: string; capabilities: any }> 
-    } {
+    }> {
+        await this.ensureInitialized();
         return {
             rsyncAvailable: this.rsyncAvailable,
             fallbackMethods: Array.from(this.availableProviders.entries()).map(([name, provider]) => ({
