@@ -75,3 +75,19 @@ export type {
     ZipTransferOptions,
     ZipResult
 } from './src/utils/zip-utils.js';
+
+// File operation retry utilities (for handling locked files on Windows)
+export {
+    retryFileOperation,
+    copyFileWithRetry,
+    readFileWithRetry,
+    writeFileWithRetry,
+    renameWithRetry,
+    unlinkWithRetry,
+    mkdirWithRetry,
+    statWithRetry,
+    DEFAULT_RETRY_OPTIONS
+} from './src/utils/file-retry.js';
+export type {
+    RetryOptions
+} from './src/utils/file-retry.js';
