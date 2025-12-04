@@ -110,9 +110,14 @@ export class UnifiedTransferManager extends EventEmitter {
             this.rsyncAvailable = rsyncResult.isAvailable;
             
             // Check which fallback providers are available
-            for (const provider of this.platformProviders) {
+            const availabilityChecks = this.platformProviders.map(async (provider) => {
                 try {
-                    if (await provider.isAvailable()) {
+                    const available = await Promise.race([
+                        provider.isAvailable(),
+                        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 5000))
+                    ]);
+                    
+                    if (available) {
                         this.availableProviders.set(provider.name, provider);
                         
                         // Set up event forwarding
@@ -123,12 +128,21 @@ export class UnifiedTransferManager extends EventEmitter {
                         provider.on('error', (error: Error) => {
                             this.emit('error', error);
                         });
+                        
+                        console.log(`[TransferManager] Provider '${provider.name}' is available`);
+                    } else {
+                        console.log(`[TransferManager] Provider '${provider.name}' is not available`);
                     }
                 } catch (error) {
                     // Provider initialization failed, skip it
-                    console.warn(`Failed to initialize provider ${provider.name}:`, error);
+                    console.warn(`[TransferManager] Failed to initialize provider ${provider.name}:`, error);
                 }
-            }
+            });
+            
+            await Promise.all(availabilityChecks);
+            
+            console.log(`[TransferManager] Initialized with ${this.availableProviders.size} providers:`, 
+                Array.from(this.availableProviders.keys()));
             
             this.emit('initialized', {
                 rsyncAvailable: this.rsyncAvailable,
@@ -138,6 +152,7 @@ export class UnifiedTransferManager extends EventEmitter {
             this.initialized = true;
             
         } catch (error) {
+            console.error('[TransferManager] Initialization failed:', error);
             this.emit('error', error);
             throw error;
         }
@@ -213,33 +228,55 @@ export class UnifiedTransferManager extends EventEmitter {
         const isNetworkTransfer = source.isRemote || destination.isRemote;
         const strategy = options.strategy || 'most-compatible';
         
+        console.log(`[TransferManager] Selecting fallback provider for ${isNetworkTransfer ? 'network' : 'local'} transfer`);
+        console.log(`[TransferManager] Available providers: ${Array.from(this.availableProviders.keys()).join(', ')}`);
+        
         // Filter providers based on capabilities
-        const suitableProviders: { provider: TransferProvider; score: number }[] = [];
+        const suitableProviders: { provider: TransferProvider; score: number; reason?: string }[] = [];
+        const rejectedProviders: { name: string; reason: string }[] = [];
         
         for (const [name, provider] of this.availableProviders) {
             // Check if provider supports network transfer if needed
             if (isNetworkTransfer && !provider.capabilities.supportsNetworkTransfer && !options.allowNetworkFallback) {
+                rejectedProviders.push({ name, reason: 'Does not support network transfers' });
                 continue;
             }
             
             // Validate targets
             const validation = await provider.validateTargets(source, destination);
             if (!validation.valid) {
+                rejectedProviders.push({ 
+                    name, 
+                    reason: `Validation failed: ${validation.errors?.join(', ') || 'Unknown error'}` 
+                });
                 continue;
             }
             
             // Calculate score based on strategy
             const score = this.calculateProviderScore(provider, strategy, options, isNetworkTransfer);
-            suitableProviders.push({ provider, score });
+            suitableProviders.push({ provider, score, reason: `Score: ${score}` });
         }
         
+        console.log('[TransferManager] Rejected providers:', rejectedProviders);
+        console.log('[TransferManager] Suitable providers:', 
+            suitableProviders.map(p => `${p.provider.name} (score: ${p.score})`).join(', '));
+        
         if (suitableProviders.length === 0) {
-            throw new Error('No suitable transfer providers available for the given targets and options');
+            const detailedError = [
+                'No suitable transfer providers available for the given targets and options.',
+                `Available providers: ${Array.from(this.availableProviders.keys()).join(', ') || 'none'}`,
+                rejectedProviders.length > 0 ? 'Rejection reasons:' : '',
+                ...rejectedProviders.map(r => `  - ${r.name}: ${r.reason}`)
+            ].filter(Boolean).join('\n');
+            
+            throw new Error(detailedError);
         }
         
         // Sort by score (highest first) and return the best provider
         suitableProviders.sort((a, b) => b.score - a.score);
-        return suitableProviders[0].provider;
+        const selected = suitableProviders[0].provider;
+        console.log(`[TransferManager] Selected provider: ${selected.name}`);
+        return selected;
     }
 
     /**

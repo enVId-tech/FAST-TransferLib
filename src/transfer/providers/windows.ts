@@ -140,15 +140,24 @@ export class RobocopyProvider extends TransferProvider {
             errors.push(`Source path does not exist: ${source.path}`);
         }
         
-        // Check destination directory can be created
+        // For destination, we only check if it's a remote path or if the parent path is accessible
+        // We don't require the destination to exist (it will be created)
         if (!destination.isRemote) {
             try {
                 const destDir = dirname(destination.path);
-                if (!existsSync(destDir)) {
-                    errors.push(`Destination directory does not exist: ${destDir}`);
+                // Only validate if destDir is different from destination.path (i.e., not root)
+                if (destDir && destDir !== destination.path) {
+                    // Check if parent directory exists or can be created
+                    // We'll be lenient here - robocopy can create directories
+                    const stats = existsSync(destDir) ? statSync(destDir) : null;
+                    if (stats && !stats.isDirectory()) {
+                        errors.push(`Destination parent is not a directory: ${destDir}`);
+                    }
                 }
             } catch (err: any) {
-                errors.push(`Cannot access destination: ${err.message}`);
+                // Don't fail validation for destination access issues
+                // Robocopy will handle these at runtime
+                console.warn(`[RobocopyProvider] Warning checking destination: ${err.message}`);
             }
         }
         
